@@ -3,7 +3,6 @@
 #include "glwidget.h"
 #include "./ui_mainwindow.h"
 #include <QFileDialog>
-#include <QtCore/QDir>
 #include <array>
 #include <fstream>
 #include <chrono>
@@ -15,6 +14,7 @@ using namespace kit;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , basePath(QDir::currentPath())
 {
     ui->setupUi(this);
     for (auto i=0; i < 4; ++i)
@@ -51,7 +51,7 @@ void MainWindow::on_toolExit_clicked()
 }
 
 void MainWindow::on_action_add_triggered()
-{    
+{
     if (ui->openGLWidget->getCountClouds() == 2) {
         QMessageBox msgBox;
         msgBox.setText("Количество открытых загруженных mkv-файлов - 2. Для добавления новой пары файлов необходимо очистить ресурсы !");
@@ -59,41 +59,11 @@ void MainWindow::on_action_add_triggered()
         return;
     }
 
+    QDir::setCurrent(basePath.absolutePath());
     QDir::setCurrent("files/mkv");
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open MKV-file"), QDir::currentPath(), tr("MKV-file (*.mkv)"));
-    QDir::setCurrent("../../");
-    if (fileName.isEmpty()) {
+    if (!addCloudMkv(fileName))
         return;
-    }
-    uint idx = 0;
-    if (ui->listCameras->count()) {
-        setUiPointsCloud(ui->openGLWidget->getCountClouds()-1);
-    }
-    idx = ui->openGLWidget->getCountClouds();
-    ui->gbConfig->setEnabled(true);
-    oldIndex = idx;
-    try {
-        cloud[idx] = new kit::Cloud(fileName.toStdString(), this);
-    } catch (std::exception &e) {
-        QMessageBox msgBox;
-        QString text = "Ошибка открытия файла: ";
-        text.append(e.what());
-        text = text + " !";
-        msgBox.setText(text);
-        msgBox.exec();
-        return;
-    }
-    ui->openGLWidget->pushPoints(fileName.toStdString(), cloud[idx]->getPoints());
-    kit::Point point{1.0,0.0,0.0};
-    ++indItem;
-    if (indItem == 2)
-        point = {0.0, 1.0, 0.0};
-    ui->openGLWidget->pushArucoMarkers(cloud[idx]->getPointsAruco(), point);
-    ui->openGLWidget->initGL();
-    ui->listCameras->addItem(std::to_string(indItem).c_str());
-    ui->listCameras->setCurrentIndex(ui->listCameras->count()-1);
-    on_defaultCam_clicked();
-    cloud[idx]->memClear();
 }
 
 void MainWindow::setUiPointsCloud(const uint idx)
@@ -198,9 +168,9 @@ void MainWindow::on_moveVel_textChanged(const QString &arg1)
 
 void MainWindow::on_actionSave_Clouds_triggered()
 {
+    QDir::setCurrent(basePath.absolutePath());
     QDir::setCurrent("files/points_cloud");
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save ply-file"), QDir::currentPath(), tr("PLY-file (*.ply)"));
-    QDir::setCurrent("../../");
     if (fileName.isEmpty()) {
         return;
     }
@@ -216,9 +186,9 @@ void MainWindow::on_actionSave_matrix_triggered()
         msgBox.exec();
         return;
     }
-    QDir::setCurrent("files/matrices");
+    QDir::setCurrent(basePath.absolutePath());
+    QDir::setCurrent("files/matricies");
     fileSave = QFileDialog::getSaveFileName(this, tr("Save mx-file"), QDir::currentPath(), tr("MX-file (*.mx)"));
-    QDir::setCurrent("../../");
     if (fileSave.isEmpty()) {
         return;
     }
@@ -235,25 +205,14 @@ void MainWindow::on_actionLoad_matrix_triggered()
         msgBox.exec();
         return;
     }
-    QDir::setCurrent("files/matrices");
+    QDir::setCurrent(basePath.absolutePath());
+    QDir::setCurrent("files/matricies");
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open mx-file"), QDir::currentPath(), tr("MX-file (*.mx)"));
-    QDir::setCurrent("../../");
     if (fileName.isEmpty()) {
         return;
     }
-    std::array<std::array<float, 4>, 4> matr;
 
-    std::ifstream ifs(fileName.toStdString(), std::ios_base::in | std::ios_base::binary);
-    ifs.read(reinterpret_cast<char*>(&matr[0][0]), 4*4*sizeof(float));
-    ifs.close();
-    ui->openGLWidget->setMatrixCurDefCloud(matr);
-
-    ui->openGLWidget->multiMatrCurPoints(matr);
-    ui->openGLWidget->multiMatrCurArucoMarkers(matr);
-    ui->openGLWidget->setMatrixCurGlueCloud(identityMatr4x4());
-
-    matrixUpdateCurCam();
-    update();
+    loadMatrix(fileName);
 }
 
 void MainWindow::on_get_matrix_clicked()
@@ -495,6 +454,60 @@ void MainWindow::clearResurces()
     }
 }
 
+bool MainWindow::addCloudMkv(const QString& fileName)
+{
+    if (fileName.isEmpty()) {
+        return false;
+    }
+    uint idx = 0;
+    if (ui->listCameras->count()) {
+        setUiPointsCloud(ui->openGLWidget->getCountClouds()-1);
+    }
+    idx = ui->openGLWidget->getCountClouds();
+    ui->gbConfig->setEnabled(true);
+    oldIndex = idx;
+    try {
+        cloud[idx] = new kit::Cloud(fileName.toStdString(), this);
+    } catch (std::exception &e) {
+        QMessageBox msgBox;
+        QString text = "Ошибка открытия файла: ";
+        text.append(e.what());
+        text = text + " !";
+        msgBox.setText(text);
+        msgBox.exec();
+        return false;
+    }
+    ui->openGLWidget->pushPoints(fileName.toStdString(), cloud[idx]->getPoints());
+    kit::Point point{1.0,0.0,0.0};
+    ++indItem;
+    if (indItem == 2)
+        point = {0.0, 1.0, 0.0};
+    ui->openGLWidget->pushArucoMarkers(cloud[idx]->getPointsAruco(), point);
+    ui->openGLWidget->initGL();
+    ui->listCameras->addItem(std::to_string(indItem).c_str());
+    ui->listCameras->setCurrentIndex(ui->listCameras->count()-1);
+    on_defaultCam_clicked();
+    cloud[idx]->memClear();
+    return true;
+}
+
+void MainWindow::loadMatrix(const QString &fileName)
+{
+    std::array<std::array<float, 4>, 4> matr;
+
+    std::ifstream ifs(fileName.toStdString(), std::ios_base::in | std::ios_base::binary);
+    ifs.read(reinterpret_cast<char*>(&matr[0][0]), 4*4*sizeof(float));
+    ifs.close();
+    ui->openGLWidget->setMatrixCurDefCloud(matr);
+
+    ui->openGLWidget->multiMatrCurPoints(matr);
+    ui->openGLWidget->multiMatrCurArucoMarkers(matr);
+    ui->openGLWidget->setMatrixCurGlueCloud(identityMatr4x4());
+
+    matrixUpdateCurCam();
+    update();
+}
+
 void MainWindow::on_action_clear_triggered()
 {
     clearResurces();
@@ -587,3 +600,9 @@ void MainWindow::on_pointsColor_activated(int index)
     ui->openGLWidget->setFColorCurIndex(true);
     ui->openGLWidget->setColorCurCloud( QColor(ui->comboBox_Color->itemText(index)) );
 }
+
+void MainWindow::on_actionAuto_test_triggered()
+{
+
+}
+

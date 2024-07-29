@@ -4,6 +4,7 @@
 #include "quat.h"
 #include <QMainWindow>
 #include <QTableWidgetItem>
+#include <QtCore/QDir>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -35,6 +36,8 @@ private:
                      const std::array<float, 3> &normRotate);
     void setUiMatrix(const std::array<std::array<float,4>,4> &mat);
     void clearResurces();
+    bool addCloudMkv(const QString &fileName);
+    void loadMatrix(const QString& fileName);
 
 private:
     uint indItem = 0;
@@ -43,6 +46,7 @@ private:
     std::map<int, kit::Cloud*> cloud;
     kit::Cloud* _cloud;
     QString fileSave;
+    QDir basePath;
     std::map<std::string, kit::CloudData> cloudData;
     std::array<std::array<std::unique_ptr<QTableWidgetItem>,4>,4> modelViewMatr;
 
@@ -74,6 +78,8 @@ private slots:
     void on_get_matrix_clicked();
     void on_action_glue_triggered();
     void on_action_clear_triggered();
+    void on_actionAuto_test_triggered();
+
 public slots:
     void onSaveMatr(const float *matr);
 

@@ -1686,7 +1686,9 @@
     <property name="title">
      <string>Tools</string>
     </property>
+    <addaction name="separator"/>
     <addaction name="action_glue"/>
+    <addaction name="actionAuto_test"/>
    </widget>
    <addaction name="menu"/>
    <addaction name="menuTools"/>
@@ -1751,6 +1753,11 @@
   <action name="action_glue">
    <property name="text">
     <string>Glue clouds of points</string>
+   </property>
+  </action>
+  <action name="actionAuto_test">
+   <property name="text">
+    <string>Auto test</string>
    </property>
   </action>
  </widget>

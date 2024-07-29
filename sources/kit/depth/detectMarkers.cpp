@@ -13,7 +13,7 @@ DetectMarkers::DetectMarkers(const cv::Mat &grey)
     : image(grey)
 {
     cv::Mat image = grey;
-    std::string temp = "files/json/plane.json";
+    std::string temp = "../../files/json/plane.json";
     auto [corners, ids, board] = detect_markers(image, temp);
     if (ids.size() > 0) {
         std::vector<cv::Point2f> charucoCorners;
